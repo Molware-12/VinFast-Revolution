@@ -1,0 +1,36 @@
+.nav-link {
+    /* display: flex;
+    justify-content: flex-start; */
+    margin-right: 50px; 
+    padding: var(--bs-nav-link-padding-y) var(--bs-nav-link-padding-x);
+    font-size: var(--bs-nav-link-font-size);
+    font-weight: var(--bs-nav-link-font-weight);
+    color: var(--bs-nav-link-color);
+    text-decoration: none;
+    background: 0 0;
+    border: 0;
+    transition: color .15s 
+ease-in-out, background-color .15s 
+ease-in-out, border-color .15s 
+ease-in-out;
+}
+
+.dropdown-menu[data-bs-popper] {
+    width: 170px;
+    top: 100%;
+    left: 0;
+    right: 50%;
+    margin-top: var(--bs-dropdown-spacer);
+}
+
+img, svg {
+    width: 20px;
+    aspect-ratio: auto 30 / 24;
+    height: 24px;
+    aspect-ratio: auto 30 / 24;
+}
+
+img {
+    width: 100px;
+    height: 70px;
+}
