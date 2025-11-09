@@ -119,3 +119,13 @@
     white-space: pre;
   }
 }
+
+/* This loads after leaflet.css, so it overrides properly */
+.my-leaflet-map .leaflet-container {
+  border-radius: 0.6rem;      /* or 16px, 24px, etc. */
+  overflow: hidden;         /* Prevent tiles poking out */
+}
+
+.leaflet-routing-container {
+  display: none !important;
+}
