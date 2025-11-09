@@ -10,20 +10,94 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import VinFastLogo from "@/components/ui/vinfastlogo";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { RoutingControl} from "@/hooks/use-routing";
+import { RoutingControl } from "@/hooks/use-routing";
+import L from "leaflet";
 
+const svgString = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M135.2 117.4l-26.1 74.6 293.8 0-26.1-74.6C372.3 104.6 360.2 96 346.6 96L165.4 96c-13.6 0-25.7 8.6-30.2 21.4zM39.6 196.8L74.8 96.3C88.3 57.8 124.6 32 165.4 32l181.2 0c40.8 0 77.1 25.8 90.6 64.3l35.2 100.5c23.2 9.6 39.6 32.5 39.6 59.2l0 192c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-32-320 0 0 32c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32L0 256c0-26.7 16.4-49.6 39.6-59.2zM128 304a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm288 32a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"/></svg>
+`);
+
+const customIcon = L.icon({
+  iconUrl: "data:image/svg+xml," + svgString,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  popupAnchor: [0, -40],
+});
+
+const position1: [number, number] = [43.64, -79.63];
+const position2: [number, number] = [43.41, -79.73];
+const waypoints: [number, number][] = [
+  [43.7, -79.4],
+  [43.64, -79.63],
+];
+
+type ChargerBreakdown = {
+  level1: number;
+  level2: number;
+  dcFast: number;
+};
+
+type Lot = {
+  id: string;
+  name: string;
+  position: [number, number];
+  totalStations: number;
+  available: number;
+  breakdown: ChargerBreakdown;
+  notes?: string;
+};
+
+const LOTS: Lot[] = [
+  {
+    id: "ambler",
+    name: "Ambler Dr Parking Lot",
+    position: position1,
+    totalStations: 19,
+    available: 7,
+    breakdown: { level1: 2, level2: 8, dcFast: 2 },
+    notes: "Covered lot, close to building A.",
+  },
+  {
+    id: "south-service",
+    name: "S Service Rd W Parking Lot",
+    position: position2,
+    totalStations: 19,
+    available: 3,
+    breakdown: { level1: 4, level2: 6, dcFast: 6 },
+    notes: "Large lot; several DC fast bays (often busy).",
+  },
+];
 
 export default function Index() {
-  const position1: [number, number] = [43.64, -79.63];
-  const position2: [number, number] = [43.41, -79.73];
-  const waypoints: [number, number][] = [
-    [43.7, -79.4],      // Start point
-    [43.64, -79.63],     // End point
-  ];
   const [activeTab, setActiveTab] = useState("home");
+  const [activeLotId, setActiveLotId] = useState<string | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const listRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navigate = useNavigate();
+
+  const focusLotOnMap = (lot: Lot) => {
+    if (!mapRef.current) return;
+    mapRef.current.setView(lot.position, 14, { animate: true });
+    setActiveLotId(lot.id);
+
+    const el = listRefs.current[lot.id];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring", "ring-white/20");
+      setTimeout(() => el.classList.remove("ring", "ring-white/20"), 1400);
+    }
+  };
+
+  const percentAvailable = (lot: Lot) =>
+    lot.totalStations === 0
+      ? 0
+      : Math.round((lot.available / lot.totalStations) * 100);
+
+  const handleMapCreated = (map: L.Map) => {
+    mapRef.current = map;
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-white flex flex-col relative overflow-hidden">
@@ -35,9 +109,7 @@ export default function Index() {
 
         <div className="flex items-center gap-3">
           <VinFastLogo />
-          <h1 className="text-xl md:text-2xl font-bold">
-            Good Morning, David 😊
-          </h1>
+          <h1 className="text-xl md:text-2xl font-bold">VinFast</h1>
         </div>
 
         <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center relative">
@@ -56,103 +128,109 @@ export default function Index() {
             Find Free Charging Stations
           </h4>
           <div className="my-leaflet-map">
-          <MapContainer
-            center={position1}
-            zoom={9.9}
-            style={{ height: "400px", width: "100%" 
-            
-          }}
-            scrollWheelZoom={true}
-            
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="&copy; OpenStreetMap contributors"
-            />
-            <Marker position={position1}>
-              <Popup>
-                Vinfast Charging Station <br /> 5505 Ambler Dr | Route
-              </Popup>
-            </Marker>
-            <Marker position={waypoints[0]}>
-              <Popup>
-                Vinfast Charging Station <br /> 5505 Ambler Dr | Route
-              </Popup>
-            </Marker>
-            <Marker position={position2}>
-              <Popup>
-                Vinfast Charging Station <br /> 2270 S Service Rd W | Route
-              </Popup>
-            </Marker>
-            <RoutingControl waypoints={waypoints} />
-          </MapContainer>
+            <MapContainer
+              center={position1}
+              zoom={9.9}
+              style={{ height: "400px", width: "100%" }}
+              scrollWheelZoom={true}
+              whenCreated={handleMapCreated}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; OpenStreetMap contributors"
+              />
+              <Marker position={position1}>
+                <Popup>
+                  Vinfast Charging Station <br /> 5505 Ambler Dr | Route
+                </Popup>
+              </Marker>
+              <Marker position={waypoints[0]} icon={customIcon}>
+                <Popup>You are here.</Popup>
+              </Marker>
+              <Marker position={position2}>
+                <Popup>
+                  Vinfast Charging Station <br /> 2270 S Service Rd W | Route
+                </Popup>
+              </Marker>
+              <RoutingControl waypoints={waypoints} />
+            </MapContainer>
           </div>
         </div>
 
-        {/* Add Your Vehicle Section */}
-        <section className="mb-8">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4 mt-6">
-            My Vinfast VF9
+        {/* Charging Station Section (replaces App Library & Car Controls) */}
+        <section className="mb-8 mt-6">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+            Nearby Parking Lots
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e5bb8] to-[#2d7fe0] p-6 md:p-8 text-left transition-transform hover:scale-[1.02] active:scale-[0.98]">
-              <div className="relative z-10">
-                <div className="w-16 h-16 md:w-20 md:h-20 mb-4 flex items-center justify-center">
-                  <svg
-                    className="w-full h-full"
-                    viewBox="0 0 80 80"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      fill="white"
-                      fillOpacity="0.2"
-                    />
-                    <path
-                      d="M40 25C31.716 25 25 31.716 25 40C25 48.284 31.716 55 40 55C48.284 55 55 48.284 55 40C55 31.716 48.284 25 40 25ZM40 50C34.486 50 30 45.514 30 40C30 34.486 34.486 30 40 30C45.514 30 50 34.486 50 40C50 45.514 45.514 50 40 50Z"
-                      fill="white"
-                    />
-                    <circle cx="40" cy="40" r="5" fill="white" />
-                  </svg>
-                </div>
-                <h4 className="text-xl md:text-2xl font-bold text-white">
-                  App Library
-                </h4>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </button>
+            {LOTS.map((lot) => {
+              const pct = percentAvailable(lot);
+              return (
+                <div
+                  key={lot.id}
+                  ref={(el) => (listRefs.current[lot.id] = el)}
+                  className={`bg-gradient-to-br ${
+                    activeLotId === lot.id
+                      ? "from-white/6 to-white/4 ring-1 ring-white/8"
+                      : "from-white/4 to-white/2/0"
+                  } backdrop-blur-sm rounded-2xl p-4 shadow transition cursor-pointer`}
+                  onClick={() => focusLotOnMap(lot)}
+                >
+                  <h4 className="text-lg font-semibold">{lot.name}</h4>
+                  <p className="text-xs text-gray-300 mt-1">{lot.notes}</p>
 
-            <button className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e5bb8] to-[#2d7fe0] p-6 md:p-8 text-left transition-transform hover:scale-[1.02] active:scale-[0.98]">
-              <div className="relative z-10">
-                <div className="w-16 h-16 md:w-20 md:h-20 mb-4 flex items-center justify-center">
-                  <svg
-                    className="w-full h-full"
-                    viewBox="0 0 80 80"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="35"
-                      fill="white"
-                      fillOpacity="0.2"
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-gray-400 uppercase">
+                        Total stations
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {lot.totalStations}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400 uppercase">
+                        Available
+                      </div>
+                      <div className="text-2xl font-bold text-green-300">
+                        {lot.available}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 w-full bg-white/6 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
+                      style={{ width: `${pct}%` }}
                     />
-                    <path
-                      d="M40 25C31.716 25 25 31.716 25 40C25 48.284 31.716 55 40 55C48.284 55 55 48.284 55 40C55 31.716 48.284 25 40 25ZM40 30C42.761 30 45 32.239 45 35C45 37.761 42.761 40 40 40C37.239 40 35 37.761 35 35C35 32.239 37.239 30 40 30ZM40 50C35.858 50 32.236 47.761 30.465 44.375C30.531 40.875 37.5 39 40 39C42.487 39 49.469 40.875 49.535 44.375C47.764 47.761 44.142 50 40 50Z"
-                      fill="white"
-                    />
-                  </svg>
+                  </div>
+                  <div className="text-xs text-gray-300 mt-1">
+                    {pct}% available
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="bg-white/4 rounded-lg p-2 text-center">
+                      <div className="text-sm text-gray-300">Level 1</div>
+                      <div className="text-lg font-semibold">
+                        {lot.breakdown.level1}
+                      </div>
+                    </div>
+                    <div className="bg-white/4 rounded-lg p-2 text-center">
+                      <div className="text-sm text-gray-300">Level 2</div>
+                      <div className="text-lg font-semibold">
+                        {lot.breakdown.level2}
+                      </div>
+                    </div>
+                    <div className="bg-white/4 rounded-lg p-2 text-center">
+                      <div className="text-sm text-gray-300">DC Fast</div>
+                      <div className="text-lg font-semibold">
+                        {lot.breakdown.dcFast}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <h4 className="text-xl md:text-2xl font-bold text-white">
-                  Car Controls
-                </h4>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </button>
+              );
+            })}
           </div>
         </section>
 

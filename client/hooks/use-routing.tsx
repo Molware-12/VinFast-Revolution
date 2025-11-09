@@ -18,6 +18,7 @@ export function RoutingControl({ waypoints }) {
       draggableWaypoints: false,
       fitSelectedRoutes: true,
       show: false,
+      createMarker: () => null,
     }).addTo(map);
 
     // Return cleanup function
